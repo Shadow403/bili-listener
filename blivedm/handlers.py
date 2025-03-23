@@ -139,9 +139,9 @@ class BaseHandler(HandlerInterface):
         if pos != -1:
             cmd = cmd[:pos]
 
-        if cmd not in self._CMD_CALLBACK_DICT and self.debug:
+        if cmd not in self._CMD_CALLBACK_DICT:
             # 只有第一次遇到未知cmd时打日志
-            if cmd not in logged_unknown_cmds:
+            if cmd not in logged_unknown_cmds and self.debug:
                 logger.debug(f'[{client.room_id}] {cmd} {command}')
                 logged_unknown_cmds.add(cmd)
             return
