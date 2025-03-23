@@ -2,7 +2,6 @@
 import asyncio
 import enum
 import json
-import logging
 import struct
 import zlib
 from typing import *
@@ -10,15 +9,14 @@ from typing import *
 import aiohttp
 import brotli
 
+from ..log import logger
 from .. import handlers, utils
 
-logger = logging.getLogger("blivedm")
-
 USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36"
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36'
 )
 
-HEADER_STRUCT = struct.Struct(">I2H2I")
+HEADER_STRUCT = struct.Struct('>I2H2I')
 
 
 class HeaderTuple(NamedTuple):
@@ -37,6 +35,7 @@ class ProtoVer(enum.IntEnum):
     BROTLI = 3
 
 
+# go-common\app\service\main\broadcast\model\operation.go
 class Operation(enum.IntEnum):
     HANDSHAKE = 0
     HANDSHAKE_REPLY = 1
@@ -132,7 +131,7 @@ class WebSocketClientBase:
         """
         return self._room_id
 
-    def set_handler(self, handler: Optional["handlers.HandlerInterface"]):
+    def set_handler(self, handler: Optional['handlers.HandlerInterface']):
         """
         设置消息处理器
 
@@ -156,7 +155,7 @@ class WebSocketClientBase:
         启动本客户端
         """
         if self.is_running:
-            logger.warning("room=%s client is running, cannot start() again", self.room_id)
+            logger.warning('room=%s client is running, cannot start() again', self.room_id)
             return
 
         self._network_future = asyncio.create_task(self._network_coroutine_wrapper())
@@ -166,7 +165,7 @@ class WebSocketClientBase:
         停止本客户端
         """
         if not self.is_running:
-            logger.warning("room=%s client is stopped, cannot stop() again", self.room_id)
+            logger.warning('room=%s client is stopped, cannot stop() again', self.room_id)
             return
 
         self._network_future.cancel()
@@ -185,7 +184,7 @@ class WebSocketClientBase:
         等待本客户端停止
         """
         if not self.is_running:
-            logger.warning("room=%s client is stopped, cannot join()", self.room_id)
+            logger.warning('room=%s client is stopped, cannot join()', self.room_id)
             return
 
         await asyncio.shield(self._network_future)
@@ -195,7 +194,7 @@ class WebSocketClientBase:
         释放本客户端的资源，调用后本客户端将不可用
         """
         if self.is_running:
-            logger.warning("room=%s is calling close(), but client is running", self.room_id)
+            logger.warning('room=%s is calling close(), but client is running', self.room_id)
 
         # 如果session是自己创建的则关闭session
         if self._own_session:
@@ -219,9 +218,9 @@ class WebSocketClientBase:
         :return: 整个包的数据
         """
         if isinstance(data, dict):
-            body = json.dumps(data).encode("utf-8")
+            body = json.dumps(data).encode('utf-8')
         elif isinstance(data, str):
-            body = data.encode("utf-8")
+            body = data.encode('utf-8')
         else:
             body = data
         header = HEADER_STRUCT.pack(*HeaderTuple(
@@ -244,10 +243,10 @@ class WebSocketClientBase:
             # 正常停止
             pass
         except Exception as e:
-            logger.exception("room=%s _network_coroutine() finished with exception:", self.room_id)
+            logger.exception('room=%s _network_coroutine() finished with exception:', self.room_id)
             exc = e
         finally:
-            logger.debug("room=%s _network_coroutine() finished", self.room_id)
+            logger.debug('room=%s _network_coroutine() finished', self.room_id)
             self._network_future = None
 
         if self._handler is not None:
@@ -267,7 +266,7 @@ class WebSocketClientBase:
                 # 连接
                 async with self._session.ws_connect(
                     self._get_ws_url(retry_count),
-                    headers={"User-Agent": utils.USER_AGENT},  # web端的token也会签名UA
+                    headers={'User-Agent': utils.USER_AGENT},  # web端的token也会签名UA
                     receive_timeout=self._heartbeat_interval + 5,
                 ) as websocket:
                     self._websocket = websocket
@@ -285,7 +284,7 @@ class WebSocketClientBase:
                 pass
             except AuthError:
                 # 认证失败了，应该重新获取token再重连
-                logger.exception("room=%d auth failed, trying init_room() again", self.room_id)
+                logger.exception('room=%d auth failed, trying init_room() again', self.room_id)
                 self._need_init_room = True
             finally:
                 self._websocket = None
@@ -295,7 +294,7 @@ class WebSocketClientBase:
             retry_count += 1
             total_retry_count += 1
             logger.warning(
-                "room=%d is reconnecting, retry_count=%d, total_retry_count=%d",
+                'room=%d is reconnecting, retry_count=%d, total_retry_count=%d',
                 self.room_id, retry_count, total_retry_count
             )
             await asyncio.sleep(self._get_reconnect_interval(retry_count, total_retry_count))
@@ -308,7 +307,7 @@ class WebSocketClientBase:
             return
 
         if not await self.init_room():
-            raise InitError("init_room() failed")
+            raise InitError('init_room() failed')
         self._need_init_room = False
 
     def _get_ws_url(self, retry_count) -> str:
@@ -363,9 +362,9 @@ class WebSocketClientBase:
         try:
             await self._websocket.send_bytes(self._make_packet({}, Operation.HEARTBEAT))
         except (ConnectionResetError, aiohttp.ClientConnectionError) as e:
-            logger.warning("room=%d _send_heartbeat() failed: %r", self.room_id, e)
+            logger.warning('room=%d _send_heartbeat() failed: %r', self.room_id, e)
         except Exception:  # noqa
-            logger.exception("room=%d _send_heartbeat() failed:", self.room_id)
+            logger.exception('room=%d _send_heartbeat() failed:', self.room_id)
 
     async def _on_ws_message(self, message: aiohttp.WSMessage):
         """
@@ -374,7 +373,7 @@ class WebSocketClientBase:
         :param message: WebSocket消息
         """
         if message.type != aiohttp.WSMsgType.BINARY:
-            logger.warning("room=%d unknown websocket message type=%s, data=%s", self.room_id,
+            logger.warning('room=%d unknown websocket message type=%s, data=%s', self.room_id,
                            message.type, message.data)
             return
 
@@ -384,7 +383,7 @@ class WebSocketClientBase:
             # 认证失败，让外层处理
             raise
         except Exception:  # noqa
-            logger.exception("room=%d _parse_ws_message() error:", self.room_id)
+            logger.exception('room=%d _parse_ws_message() error:', self.room_id)
 
     async def _parse_ws_message(self, data: bytes):
         """
@@ -396,7 +395,7 @@ class WebSocketClientBase:
         try:
             header = HeaderTuple(*HEADER_STRUCT.unpack_from(data, offset))
         except struct.error:
-            logger.exception("room=%d parsing header failed, offset=%d, data=%s", self.room_id, offset, data)
+            logger.exception('room=%d parsing header failed, offset=%d, data=%s', self.room_id, offset, data)
             return
 
         if header.operation in (Operation.SEND_MSG_REPLY, Operation.AUTH_REPLY):
@@ -412,19 +411,19 @@ class WebSocketClientBase:
                 try:
                     header = HeaderTuple(*HEADER_STRUCT.unpack_from(data, offset))
                 except struct.error:
-                    logger.exception("room=%d parsing header failed, offset=%d, data=%s", self.room_id, offset, data)
+                    logger.exception('room=%d parsing header failed, offset=%d, data=%s', self.room_id, offset, data)
                     break
 
         elif header.operation == Operation.HEARTBEAT_REPLY:
             # 服务器心跳包，前4字节是人气值，后面是客户端发的心跳包内容
             # pack_len不包括客户端发的心跳包内容，不知道是不是服务器BUG
             body = data[offset + header.raw_header_size: offset + header.raw_header_size + 4]
-            popularity = int.from_bytes(body, "big")
+            popularity = int.from_bytes(body, 'big')
             # 自己造个消息当成业务消息处理
             body = {
-                "cmd": "_HEARTBEAT",
-                "data": {
-                    "popularity": popularity
+                'cmd': '_HEARTBEAT',
+                'data': {
+                    'popularity': popularity
                 }
             }
             self._handle_command(body)
@@ -432,7 +431,7 @@ class WebSocketClientBase:
         else:
             # 未知消息
             body = data[offset + header.raw_header_size: offset + header.pack_len]
-            logger.warning("room=%d unknown message operation=%d, header=%s, body=%s", self.room_id,
+            logger.warning('room=%d unknown message operation=%d, header=%s, body=%s', self.room_id,
                            header.operation, header, body)
 
     async def _parse_business_message(self, header: HeaderTuple, body: bytes):
@@ -453,26 +452,26 @@ class WebSocketClientBase:
                 # 没压缩过的直接反序列化，因为有万恶的GIL，这里不能并行避免阻塞
                 if len(body) != 0:
                     try:
-                        body = json.loads(body.decode("utf-8"))
+                        body = json.loads(body.decode('utf-8'))
                         self._handle_command(body)
                     except Exception:
-                        logger.error("room=%d, body=%s", self.room_id, body)
+                        logger.error('room=%d, body=%s', self.room_id, body)
                         raise
             else:
                 # 未知格式
-                logger.warning("room=%d unknown protocol version=%d, header=%s, body=%s", self.room_id,
+                logger.warning('room=%d unknown protocol version=%d, header=%s, body=%s', self.room_id,
                                header.ver, header, body)
 
         elif header.operation == Operation.AUTH_REPLY:
             # 认证响应
-            body = json.loads(body.decode("utf-8"))
-            if body["code"] != AuthReplyCode.OK:
-                raise AuthError(f'auth reply error, code={body["code"]}, body={body}')
+            body = json.loads(body.decode('utf-8'))
+            if body['code'] != AuthReplyCode.OK:
+                raise AuthError(f"auth reply error, code={body['code']}, body={body}")
             await self._websocket.send_bytes(self._make_packet({}, Operation.HEARTBEAT))
 
         else:
             # 未知消息
-            logger.warning("room=%d unknown message operation=%d, header=%s, body=%s", self.room_id,
+            logger.warning('room=%d unknown message operation=%d, header=%s, body=%s', self.room_id,
                            header.operation, header, body)
 
     def _handle_command(self, command: dict):
@@ -490,4 +489,4 @@ class WebSocketClientBase:
             # 这里做成同步的，强制用户使用create_task或消息队列处理异步操作，这样就不会阻塞网络协程
             self._handler.handle(self, command)
         except Exception as e:
-            logger.exception("room=%d _handle_command() failed, command=%s", self.room_id, command, exc_info=e)
+            logger.exception('room=%d _handle_command() failed, command=%s', self.room_id, command, exc_info=e)
