@@ -1,4 +1,4 @@
-# blivedm
+# bili-listener
 
 - [协议解释](https://open-live.bilibili.com/document/657d8e34-f926-a133-16c0-300c1afc6e6b)
 - 原属于 [xfgryujk/blivedm](https://github.com/xfgryujk/blivedm)
