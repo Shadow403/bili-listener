@@ -87,12 +87,12 @@ class BLiveClient(ws_base.WebSocketClientBase):
         """
         if self._uid is None:
             if not await self._init_uid():
-                logger.warning('room=%d _init_uid() failed', self._tmp_room_id)
+                logger.warning(f'room={self._tmp_room_id} _init_uid() failed')
                 self._uid = 0
 
         if self._get_buvid() == '':
             if not await self._init_buvid():
-                logger.warning('room=%d _init_buvid() failed', self._tmp_room_id)
+                logger.warning(f'room={self._tmp_room_id} _init_buvid() failed')
 
         res = True
         if not await self._init_room_id_and_owner():
@@ -122,8 +122,7 @@ class BLiveClient(ws_base.WebSocketClientBase):
                 headers={'User-Agent': utils.USER_AGENT},
             ) as res:
                 if res.status != 200:
-                    logger.warning('room=%d _init_uid() failed, status=%d, reason=%s', self._tmp_room_id,
-                                   res.status, res.reason)
+                    logger.warning(f'room={self._tmp_room_id} _init_uid() failed, status={res.status}, reason={res.reason}')
                     return False
                 data = await res.json()
                 if data['code'] != 0:
@@ -131,8 +130,7 @@ class BLiveClient(ws_base.WebSocketClientBase):
                         # 未登录
                         self._uid = 0
                         return True
-                    logger.warning('room=%d _init_uid() failed, message=%s', self._tmp_room_id,
-                                   data['message'])
+                    logger.warning(f'room={self._tmp_room_id} _init_uid() failed, message={data["message"]}')
                     return False
 
                 data = data['data']
@@ -143,7 +141,7 @@ class BLiveClient(ws_base.WebSocketClientBase):
                     self._uid = data['mid']
                 return True
         except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
-            logger.exception('room=%d _init_uid() failed:', self._tmp_room_id)
+            logger.exception(f'room={self._tmp_room_id} _init_uid() failed:')
             return False
 
     def _get_buvid(self):
@@ -160,10 +158,9 @@ class BLiveClient(ws_base.WebSocketClientBase):
                 headers={'User-Agent': utils.USER_AGENT},
             ) as res:
                 if res.status != 200:
-                    logger.warning('room=%d _init_buvid() status error, status=%d, reason=%s',
-                                   self._tmp_room_id, res.status, res.reason)
+                    logger.warning(f'room={self._tmp_room_id} _init_buvid() status error, status={res.status}, reason={res.reason}')
         except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
-            logger.exception('room=%d _init_buvid() exception:', self._tmp_room_id)
+            logger.exception(f'room={self._tmp_room_id} _init_buvid() exception:')
         return self._get_buvid() != ''
 
     async def _init_room_id_and_owner(self):
@@ -176,18 +173,16 @@ class BLiveClient(ws_base.WebSocketClientBase):
                 },
             ) as res:
                 if res.status != 200:
-                    logger.warning('room=%d _init_room_id_and_owner() failed, status=%d, reason=%s', self._tmp_room_id,
-                                   res.status, res.reason)
+                    logger.warning(f'room={self._tmp_room_id} _init_room_id_and_owner() failed, status={res.status}, reason={res.reason}')
                     return False
                 data = await res.json()
                 if data['code'] != 0:
-                    logger.warning('room=%d _init_room_id_and_owner() failed, message=%s', self._tmp_room_id,
-                                   data['message'])
+                    logger.warning(f'room={self._tmp_room_id} _init_room_id_and_owner() failed, message={data["message"]}')
                     return False
                 if not self._parse_room_init(data['data']):
                     return False
         except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
-            logger.exception('room=%d _init_room_id_and_owner() failed:', self._tmp_room_id)
+            logger.exception(f'room={self._tmp_room_id} _init_room_id_and_owner() failed:')
             return False
         return True
 
@@ -208,17 +203,16 @@ class BLiveClient(ws_base.WebSocketClientBase):
                 },
             ) as res:
                 if res.status != 200:
-                    logger.warning('room=%d _init_host_server() failed, status=%d, reason=%s', self._room_id,
-                                   res.status, res.reason)
+                    logger.warning('room={self._room_id} _init_host_server() failed, status={res.status}, reason={res.reason}')
                     return False
                 data = await res.json()
                 if data['code'] != 0:
-                    logger.warning('room=%d _init_host_server() failed, message=%s', self._room_id, data['message'])
+                    logger.warning(f'room={self._room_id} _init_host_server() failed, message={data["message"]}')
                     return False
                 if not self._parse_danmaku_server_conf(data['data']):
                     return False
         except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
-            logger.exception('room=%d _init_host_server() failed:', self._room_id)
+            logger.exception(f'room={self._room_id} _init_host_server() failed:')
             return False
         return True
 
@@ -226,7 +220,7 @@ class BLiveClient(ws_base.WebSocketClientBase):
         self._host_server_list = data['host_list']
         self._host_server_token = data['token']
         if not self._host_server_list:
-            logger.warning('room=%d _parse_danmaku_server_conf() failed: host_server_list is empty', self._room_id)
+            logger.warning(f'room={self._room_id} _parse_danmaku_server_conf() failed: host_server_list is empty')
             return False
         return True
 

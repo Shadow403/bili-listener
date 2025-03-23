@@ -111,7 +111,7 @@ class OpenLiveClient(ws_base.WebSocketClientBase):
         释放本客户端的资源，调用后本客户端将不可用
         """
         if self.is_running:
-            logger.warning('room=%s is calling close(), but client is running', self.room_id)
+            logger.warning(f'room={self.room_id} is calling close(), but client is running')
 
         if self._game_heartbeat_timer_handle is not None:
             self._game_heartbeat_timer_handle.cancel()
@@ -166,12 +166,11 @@ class OpenLiveClient(ws_base.WebSocketClientBase):
                 {'code': self._room_owner_auth_code, 'app_id': self._app_id}
             ) as res:
                 if res.status != 200:
-                    logger.warning('_start_game() failed, status=%d, reason=%s', res.status, res.reason)
+                    logger.warning(f'_start_game() failed, status={res.status}, reason={res.reason}')
                     return False
                 data = await res.json()
                 if data['code'] != 0:
-                    logger.warning('_start_game() failed, code=%d, message=%s, request_id=%s',
-                                   data['code'], data['message'], data['request_id'])
+                    logger.warning(f'_start_game() failed, code={data["code"]}, message={data["message"]}, request_id={data["request_id"]}')
                     return False
                 if not self._parse_start_game(data['data']):
                     return False
@@ -204,8 +203,7 @@ class OpenLiveClient(ws_base.WebSocketClientBase):
                 {'app_id': self._app_id, 'game_id': self._game_id}
             ) as res:
                 if res.status != 200:
-                    logger.warning('room=%d _end_game() failed, status=%d, reason=%s',
-                                   self._room_id, res.status, res.reason)
+                    logger.warning(f'room={self._room_id} _end_game() failed, status={res.status}, reason={res.reason}')
                     return False
                 data = await res.json()
                 code = data['code']
@@ -214,11 +212,10 @@ class OpenLiveClient(ws_base.WebSocketClientBase):
                         # 项目已经关闭了也算成功
                         return True
 
-                    logger.warning('room=%d _end_game() failed, code=%d, message=%s, request_id=%s',
-                                   self._room_id, code, data['message'], data['request_id'])
+                    logger.warning(f'room={self._room_id} _end_game() failed, code={code}, message={data["message"]}, request_id={data["request_id"]}')
                     return False
         except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
-            logger.exception('room=%d _end_game() failed:', self._room_id)
+            logger.exception(f'room={self._room_id} _end_game() failed:')
             return False
         return True
 
@@ -236,7 +233,7 @@ class OpenLiveClient(ws_base.WebSocketClientBase):
         发送项目心跳包
         """
         if self._game_id in (None, ''):
-            logger.warning('game=%d _send_game_heartbeat() failed, game_id not found', self._game_id)
+            logger.warning(f'game={self._game_id} _send_game_heartbeat() failed, game_id not found')
             return False
 
         try:
@@ -247,14 +244,12 @@ class OpenLiveClient(ws_base.WebSocketClientBase):
                 {'game_id': game_id}
             ) as res:
                 if res.status != 200:
-                    logger.warning('room=%d _send_game_heartbeat() failed, status=%d, reason=%s',
-                                   self._room_id, res.status, res.reason)
+                    logger.warning(f'room={self._room_id} _send_game_heartbeat() failed, status={res.status}, reason={res.reason}')
                     return False
                 data = await res.json()
                 code = data['code']
                 if code != 0:
-                    logger.warning('room=%d _send_game_heartbeat() failed, code=%d, message=%s, request_id=%s',
-                                   self._room_id, code, data['message'], data['request_id'])
+                    logger.warning(f'room={self._room_id} _send_game_heartbeat() failed, code={code}, message={data["message"]}, request_id={data["request_id"]}')
 
                     if code == 7003 and self._game_id == game_id:
                         # 项目异常关闭，可能是心跳超时，需要重新开启项目
@@ -264,7 +259,7 @@ class OpenLiveClient(ws_base.WebSocketClientBase):
 
                     return False
         except (aiohttp.ClientConnectionError, asyncio.TimeoutError):
-            logger.exception('room=%d _send_game_heartbeat() failed:', self._room_id)
+            logger.exception(f'room={self._room_id} _send_game_heartbeat() failed:')
             return False
         return True
 
@@ -294,7 +289,7 @@ class OpenLiveClient(ws_base.WebSocketClientBase):
         cmd = command.get('cmd', '')
         if cmd == 'LIVE_OPEN_PLATFORM_INTERACTION_END' and command['data']['game_id'] == self._game_id:
             # 服务器主动停止推送，可能是心跳超时，需要重新开启项目
-            logger.warning('room=%d game end by server, game_id=%s', self._room_id, self._game_id)
+            logger.warning(f'room={self._room_id} game end by server, game_id={self._game_id}')
 
             self._need_init_room = True
             if self._websocket is not None and not self._websocket.closed:
